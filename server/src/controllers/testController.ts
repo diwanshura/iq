@@ -7,15 +7,22 @@ import { calculateAnalytics } from '../services/analyticsService.js';
 import { calculateNextDifficulty } from '../services/adaptiveEngine.js';
 import { QUESTIONS_PER_TEST } from '../config/constants.js';
 import { AuthRequest } from '../middleware/auth.middleware.js';
+import { normalizeIqSection } from '../utils/iqSection.js';
 
 export const createTest = async (req: AuthRequest, res: Response) => {
   try {
-    const { iq_section } = req.body;
+    const { iq_section: rawSection } = req.body;
     const userId = req.user?._id;
 
-    if (!iq_section || !userId) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
+
+    const normalized = normalizeIqSection(rawSection);
+    if (!normalized.ok) {
+      return res.status(400).json({ error: normalized.error });
+    }
+    const iq_section = normalized.iq_section;
 
     // Select questions for the test
     const questions = await selectQuestionsForTest(iq_section, QUESTIONS_PER_TEST);
@@ -41,7 +48,9 @@ export const createTest = async (req: AuthRequest, res: Response) => {
       totalQuestions: questions.length
     });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create test' });
+    console.error('createTest:', error);
+    const message = error instanceof Error ? error.message : 'Failed to create test';
+    res.status(500).json({ error: 'Failed to create test', detail: message });
   }
 };
 

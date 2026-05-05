@@ -18,7 +18,13 @@ export const authAPI = {
   logout: () =>
     api.post('/auth/logout'),
   getCurrentUser: () =>
-    api.get('/auth/current-user')
+    api.get('/auth/current-user').catch(error => {
+      // 401 is expected for unauthenticated users
+      if (error.response?.status === 401) {
+        throw error;
+      }
+      throw error;
+    })
 };
 
 export const questionsAPI = {

@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { resultsAPI } from '@/lib/api';
 import { TestResult } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 
 export default function ResultsPage() {
