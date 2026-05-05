@@ -94,8 +94,9 @@ export default function TestPage() {
       const nextIndex = currentQuestionIndex + 1;
 
       if (nextIndex >= questions.length) {
-        await testAPI.submitTest(testId);
-        router.push(`/results/${testId}`);
+        const submitRes = await testAPI.submitTest(testId);
+        const resultId = submitRes?.data?.resultId as string | undefined;
+        router.push(resultId ? `/results/${resultId}` : '/test');
       } else {
         setCurrentQuestionIndex(nextIndex);
         setSelectedAnswer(null);
