@@ -40,7 +40,7 @@ export const selectQuestionsForTest = async (
         Math.min(difficultyRange.max, Math.round(baseDifficulty + difficultyVariation * 2))
       );
 
-      const aiQuestion = generateAIQuestion(iq_section, difficulty);
+      const aiQuestion = await generateAIQuestion(iq_section, difficulty);
 
       const savedQuestion = await Question.create({
         ...aiQuestion,
@@ -119,3 +119,4 @@ export default {
   getQuestionById,
   getQuestionsStats
 };
+

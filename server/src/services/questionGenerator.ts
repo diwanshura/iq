@@ -1,4 +1,5 @@
 import { COGNITIVE_CATEGORIES, type CognitiveCategory } from '../config/constants';
+import { generateQuestionWithGemini } from './geminiService.js';
 
 interface GeneratedQuestion {
   question: string;
@@ -77,10 +78,47 @@ const abstractTemplates = [
   }
 ];
 
-export const generateAIQuestion = (
+const memoryTemplates = [
+  {
+    template: "Remember: The capital of France is Paris. What is the capital of France?",
+    options: ["London", "Paris", "Berlin", "Rome"],
+    correct: "Paris"
+  },
+  {
+    template: "Remember: 7 × 8 = 56. What is 7 × 8?",
+    options: ["48", "56", "64", "49"],
+    correct: "56"
+  }
+];
+
+export const generateAIQuestion = async (
   iq_section: string,
   difficulty: number
-): GeneratedQuestion => {
+): Promise<GeneratedQuestion> => {
+  // Try Gemini API first for truly unique questions
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const categoryIndex = Math.floor(Math.random() * COGNITIVE_CATEGORIES.length);
+      const type = COGNITIVE_CATEGORIES[categoryIndex];
+
+      const geminiQuestion = await generateQuestionWithGemini(type, difficulty, iq_section);
+      return {
+        question: geminiQuestion.question,
+        type: type as CognitiveCategory,
+        difficulty,
+        iq_section: iq_section as GeneratedQuestion['iq_section'],
+        source: 'ai',
+        options: geminiQuestion.options,
+        correct_answer: geminiQuestion.correct_answer,
+        explanation: geminiQuestion.explanation
+      };
+    } catch (error) {
+      console.error('Gemini generation failed, falling back to templates:', error);
+      // Fall through to template-based generation
+    }
+  }
+
+  // Fallback: Use local templates if Gemini unavailable
   const categoryIndex = Math.floor(Math.random() * COGNITIVE_CATEGORIES.length);
   const type = COGNITIVE_CATEGORIES[categoryIndex];
 
@@ -132,6 +170,14 @@ export const generateAIQuestion = (
       explanation = `Abstract reasoning and pattern recognition.`;
       break;
 
+    case 'memory':
+      template = memoryTemplates[Math.floor(Math.random() * memoryTemplates.length)];
+      question = template.template;
+      options = template.options;
+      correct_answer = template.correct;
+      explanation = `Memory recall and information retention.`;
+      break;
+
     default:
       question = "Test question";
       options = ["A", "B", "C", "D"];
@@ -143,7 +189,7 @@ export const generateAIQuestion = (
     question,
     type,
     difficulty,
-    iq_section,
+    iq_section: iq_section as GeneratedQuestion['iq_section'],
     source: 'ai',
     options,
     correct_answer,
@@ -151,14 +197,15 @@ export const generateAIQuestion = (
   };
 };
 
-export const generateMultipleQuestions = (
+export const generateMultipleQuestions = async (
   iq_section: string,
   difficulty: number,
   count: number
-): GeneratedQuestion[] => {
+): Promise<GeneratedQuestion[]> => {
   const questions: GeneratedQuestion[] = [];
   for (let i = 0; i < count; i++) {
-    questions.push(generateAIQuestion(iq_section, difficulty));
+    questions.push(await generateAIQuestion(iq_section, difficulty));
   }
   return questions;
 };
+

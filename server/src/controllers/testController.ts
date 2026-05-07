@@ -168,17 +168,20 @@ export const submitTest = async (req: AuthRequest, res: Response) => {
     await test.save();
 
     // Calculate analytics
-    const responses = test.responses.map(r => ({
-      questionId: r.questionId.toString(),
-      selectedAnswer: r.selectedAnswer,
-      isCorrect: r.isCorrect,
-      timeSpent: r.timeSpent / 1000, // Convert to seconds
-      type: (test.questions as any[]).find(
+    const responses = test.responses.map(r => {
+      const question = (test.questions as any[]).find(
         q => q._id.toString() === r.questionId.toString()
-      )?.type || 'unknown'
-    }));
+      );
+      return {
+        questionId: r.questionId.toString(),
+        selectedAnswer: r.selectedAnswer,
+        isCorrect: r.isCorrect,
+        timeSpent: r.timeSpent / 1000,
+        type: question?.type || 'unknown'
+      };
+    });
 
-    const analytics = calculateAnalytics(responses, test.iq_section, test.totalTime / 1000);
+    const analytics = await calculateAnalytics(responses, test.iq_section, test.totalTime / 1000);
 
     // Create result record
     const result = new TestResult({
@@ -196,6 +199,7 @@ export const submitTest = async (req: AuthRequest, res: Response) => {
       ...analytics
     });
   } catch (error) {
+    console.error('submitTest error:', error);
     res.status(500).json({ error: 'Failed to submit test' });
   }
 };

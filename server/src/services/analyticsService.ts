@@ -1,4 +1,5 @@
 import { COGNITIVE_CATEGORIES, TIMING_RULES } from '../config/constants.js';
+import { generateAnalysisWithGemini } from './geminiService.js';
 
 interface Response {
   questionId: string;
@@ -8,7 +9,7 @@ interface Response {
   type: string;
 }
 
-export const calculateAnalytics = (
+export const calculateAnalytics = async (
   responses: Response[],
   iq_section: string,
   totalTime: number
@@ -62,13 +63,26 @@ export const calculateAnalytics = (
   const cognitiveStrengths = sortedCategories.slice(0, 2).map(([cat]) => cat);
   const weaknesses = sortedCategories.slice(-2).map(([cat]) => cat);
 
-  // Recommendations
-  const recommendations = generateRecommendations(
-    accuracy,
-    cognitiveStrengths,
-    weaknesses,
-    averageTimePerQuestion
-  );
+  // Recommendations - try Gemini first, fallback to templates
+  let recommendations = [];
+  try {
+    const analysis = await generateAnalysisWithGemini(
+      categoricalScores,
+      accuracy,
+      estimatedIQ,
+      iq_section,
+      averageTimePerQuestion
+    );
+    recommendations = analysis.recommendations;
+  } catch (error) {
+    console.error('Failed to generate personalized analysis:', error);
+    recommendations = generateRecommendations(
+      accuracy,
+      cognitiveStrengths,
+      weaknesses,
+      averageTimePerQuestion
+    );
+  }
 
   return {
     accuracy: Math.round(accuracy * 100) / 100,
@@ -93,19 +107,19 @@ const estimateIQ = (
 ): number => {
   // Base IQ calculation
   const accuracyNormalized = accuracy / 100;
-  
-  // Section-based baseline
+
+  // Section-based baseline (realistic IQ ranges)
   const baselines: Record<string, number> = {
-    '50-100': 75,
-    '100-150': 125,
-    '150+': 155
+    '50-100': 60,
+    '100-150': 110,
+    '150+': 145
   };
 
   const baseline = baselines[iq_section] || 100;
 
   // Accuracy component (weighted 70%)
   const accuracyDelta = (accuracyNormalized - 0.65) * 30; // Target is 65% accuracy
-  
+
   // Speed component (weighted 30%)
   const speedRatio = baseTime / averageTime;
   const speedDelta = (speedRatio - 1) * 10; // Normalize to average
@@ -149,3 +163,4 @@ export default {
   calculateAnalytics,
   estimateIQ
 };
+
